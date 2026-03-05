@@ -71,7 +71,10 @@ async def handle_nickname(message: Message):
     user = session.query(User).filter_by(telegram_id=message.from_user.id).first()
     if user:
         # Уже есть пользователь, отправляем его сообщение в тикет
-        ticket = session.query(Ticket).filter_by(user_id=user.id, status!="closed").first()
+        ticket = session.query(Ticket).filter(
+            Ticket.user_id == user.id,
+            Ticket.status != "closed",
+        ).first()
         if ticket:
             if message.reply_to_message:  # игнорируем, если это reply
                 session.close()
@@ -127,7 +130,11 @@ async def admin_actions(callback: CallbackQuery):
     elif data == "close":
         ticket.status = "closed"
         await callback.message.edit_text(f"#{ticket.id} | {ticket.display_name} | закрыт")
-        await bot.send_message(ticket.user_id, "Диалог завершён.")
+
+        user = session.query(User).filter_by(id=ticket.user_id).first()
+        if user:
+            await bot.send_message(user.telegram_id, "Диалог завершён.")
+
         await callback.answer("Тикет закрыт")
     elif data == "transfer":
         ticket.admin = None
